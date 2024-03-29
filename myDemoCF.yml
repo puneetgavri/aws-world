@@ -1,0 +1,309 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: VPC Wizard template
+
+Parameters:
+
+  myDemoVPCCidrBlock:
+    Default: 10.0.0.0/16
+    Description: VPC CIDR Block 
+    Type: String
+  
+  PrivateSubnetCidrBlock:
+    Default: 10.0.0.0/20
+    Description: subnet CIDR Block
+    Type: String
+
+  PublicSubnetCidrBlock:
+    Default: 10.1.0.0/20
+    Description: subnet CIDR Block
+    Type: String
+
+  az:
+    Type: String
+    Description: avalibility zone
+    Default: us-east-1a
+
+  creator:
+    Type: String
+    Description: person who is the owner of this cft
+  
+  mykeypair:
+    Type: String
+    Description: key pair
+  
+  myAMIid:
+    Type: String
+    Description: ami id
+
+  EC2InstanceTpe:
+    Description: Select Instance Type.
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro,t2.small,t3.medium,t3.micro]
+  
+
+Resources:
+
+
+  myDemoPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: myDemoVPC
+    Properties:
+      AvailabilityZone: !Ref az
+      VpcId: !Ref myDemoVPC
+      CidrBlock: !Ref PrivateSubnetCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-privatesubnet
+        - Key: Stack
+          Value: !Ref AWS::StackName
+
+  myDemoPublicSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: myDemoVPC
+    Properties:
+      AvailabilityZone: !Ref az
+      VpcId: !Ref myDemoVPC
+      CidrBlock: !Ref PublicSubnetCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-publicsubnet
+        - Key: Stack
+          Value: !Ref AWS::StackName
+
+  myDemoVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref myDemoVPCCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-VPC
+        - Key: Stack
+          Value: !Ref AWS::StackName
+
+  
+  MySecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MySecurityGroup1
+      GroupDescription: security group for demo 
+      VpcId: !Ref myDemoVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 3900
+          ToPort: 3900
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-SG
+        - Key: Stack
+          Value: !Ref AWS::StackName
+    
+  MySecurityGroup2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MySecurityGroup2
+      GroupDescription: security group for demo 
+      VpcId: !Ref myDemoVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 3500
+          ToPort: 3500
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-SG
+        - Key: Stack
+          Value: !Ref AWS::StackName
+  
+  myDemoigw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::Region}-igw
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myDemoVPC
+      InternetGatewayId: !Ref myDemoigw
+  
+  MyDemoPublicRouteTable: 
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myDemoVPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}/public-route-table
+      - Key: Stack
+        Value: !Sub ${AWS::StackId}
+  
+  MyDemoPublicRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myDemoPublicSubnet
+      RouteTableId: !Ref MyDemoPublicRouteTable
+  
+  MyDemoPublicRouteToIgw:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MyDemoPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref myDemoigw
+
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref mykeypair
+      DisableApiTermination: false
+      ImageId: !Ref myAMIid
+      AvailabilityZone: !Ref az
+      InstanceType: !Ref EC2InstanceTpe
+      Monitoring: false
+      NetworkInterfaces: 
+       - AssociatePublicIpAddress: "true"
+         DeviceIndex: "0"
+         GroupSet: 
+          - !Ref MySecurityGroup1
+         SubnetId: !Ref myDemoPublicSubnet
+      UserData:
+          Fn::Base64: 
+            !Sub |
+             #!/bin/bash
+             yum update -y
+             yum install -y httpd.x86_64
+             systemctl start httpd.service
+             systemctl enable httpd.service
+             echo ?Hello World from $(hostname -f)? > /var/www/html/index.html
+        
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-EC2
+        - Key: Stack
+          Value: !Sub ${AWS::StackId}
+
+  mysecondEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref mykeypair
+      DisableApiTermination: false
+      ImageId: !Ref myAMIid
+      AvailabilityZone: !Ref az
+      InstanceType: !Ref EC2InstanceTpe
+      Monitoring: false
+      NetworkInterfaces: 
+       - AssociatePublicIpAddress: "true"
+         DeviceIndex: "0"
+         GroupSet: 
+          - !Ref MySecurityGroup2
+         SubnetId: !Ref myDemoPublicSubnet
+      UserData: 
+          Fn::Base64: 
+            !Sub |
+              #!/bin/bash
+              yum update -y
+              yum install -y httpd.x86_64
+              systemctl start httpd.service
+              systemctl enable httpd.service
+              echo ?Hello World from $(hostname -f)? > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-EC2
+        - Key: Stack
+          Value: !Sub ${AWS::StackId}
+
+  mys3Bucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketName: "hello070820237y78y"
+   
+  news3:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketName: "new123ergdhgfj"
+ 
+  myDemoELB:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref MySecurityGroup2
+      Subnets:
+        - !Ref myDemoPublicSubnet
+      Instances:
+        - !Ref myEC2Instance
+        - !Ref mysecondEC2Instance
+      Listeners:
+        - LoadBalancerPort: '80'
+          InstancePort: '80'
+          Protocol: HTTP
+          InstanceProtocol: HTTP
+      HealthCheck:
+        Target: HTTP:80/
+        HealthyThreshold: '2'
+        Interval: '10'
+        Timeout: '5'
+        UnhealthyThreshold: '3'
+
+Outputs:
+  OUTPUTVpcId:
+    Value: !Ref myDemoVPC
+
+  OUTPUTPublicSubnetID:
+    Value: !Ref myDemoPublicSubnet
+    
+  OUTPUTPrivateSubnetID:
+    Value: !Ref myDemoPrivateSubnet
+
+  OUTPUTowner:
+    Value: !Ref creator
+
+  OUTPUTEC2PrivateIP:
+    Description: ip of Ec2 instance
+    Value: !GetAtt myEC2Instance.PrivateIp
+  
+  OUTPUTEC2PublicIP:
+    Description: ip of Ec2 instance
+    Value: !GetAtt myEC2Instance.PublicIp
+  
+  OUTPUTEC2InstanceID:
+    Description: ip of Ec2 instance
+    Value: !Ref myEC2Instance
+  
+  OUTPUTSecondEC2PrivateIP:
+    Description: ip of Ec2 instance
+    Value: !GetAtt mysecondEC2Instance.PrivateIp
+  
+  OUTPUTSecondEC2PublicIP:
+    Description: ip of Ec2 instance
+    Value: !GetAtt mysecondEC2Instance.PublicIp
+  
+  OUTPUTSecondEC2InstanceID:
+    Description: ip of Ec2 instance
+    Value: !Ref mysecondEC2Instance
+  
+  OUTPUTLBEndpoint:
+    Value: !GetAtt 'myDemoELB.DNSName'
+    Description: 'LoadBalancer DNS name'
+
+  
