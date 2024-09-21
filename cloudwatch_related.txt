@@ -1,0 +1,42 @@
+Installing and configuring cloudwatch agent in Amazon Linux2
+
+Step1- Create a IAM Role for EC2 instance with Permissions "cloudwatchlogsFullAccess"
+Step2- Attach the role to EC2
+Step3- Connect to ec2 instance
+Step4- download cloudwatch-agent package using below command:
+wget https://amazoncloudwatch-agent-us-east-1.s3.us-east-1.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+Step5- Install the package using below command:
+rpm -U amazon-cloudwatch-agent.rpm
+Step6- To verify installation go to directory /opt/aws/amazon-cloudwatch-agent/
+Step7- Run the wizard script using below command and provide necessary inputs:
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard
+Step8- Go inside the bin directory to verify/modify the config.json file
+Step9- Start the agent using below command:
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+
+
+Commands to start stop cloud watch agent:
+  sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status -m ec2
+  sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a stop -m ec2
+  sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status -m ec2
+  sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start -m ec2
+
+https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-commandline-fleet.html
+
+Install Stress utility:
+
+sudo amazon-linux-extras install epel -y
+sudo yum install stress -y
+
+Command to give stress to ec2:
+stress --cpu 1
+
+sha1sum /dev/zero &
+
+#!/bin/bash
+sudo su
+yum update -y
+yum install httpd -y
+service httpd start
+chkconfig httpd on
+echo "Hello from $(hostname -f)" > /var/www/html/index.html
