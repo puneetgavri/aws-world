@@ -89,12 +89,17 @@ If there's no output, the decryption was successful! 🎉
 
 AWS **console does not support sharing snapshots encrypted with the default AWS-managed KMS key**. So, we will first **re-encrypt the snapshot using a Customer Managed Key (CMK)** and then share it.
 
-### 🔑 Step 1: Create a Customer Managed KMS Key (CMK)
+### 🔑 Step 1: Create and Share a Customer Managed KMS Key (CMK)
 1. **Go to the KMS Console:** Navigate to **AWS Management Console > KMS > Customer managed keys > Create key**.
 2. **Select Key Type:** Choose **Symmetric** (recommended for EBS encryption).
 3. **Configure Key:** Set a **Name**, **Description**, and other settings as needed.
-4. **Define Key Policy:** Ensure your IAM user/role has permission to use the key.
-5. **Create Key.**
+4. **Define Key Policy:**
+   - Go to **Key Policies** and click on **Add Account**.
+   - Enter the **AWS Account ID** of the target account you want to share the snapshot with.
+   - Save Changes.
+5. **Save Changes** and **Create Key.**
+
+---
 
 ### 🔒 Step 2: Re-Encrypt the Snapshot Using Your CMK
 1. **Go to the Amazon EC2 Console:** Navigate to **Snapshots** under **Elastic Block Store**.
@@ -103,12 +108,16 @@ AWS **console does not support sharing snapshots encrypted with the default AWS-
 4. In the **Copy Snapshot** dialog, select your **CMK**.
 5. Click **Copy**.
 
+---
+
 ### 📤 Step 3: Share the Snapshot with Another AWS Account
 1. **In the EC2 Console**, go to **Snapshots**.
 2. Select the **Copied Snapshot (Encrypted with CMK)**.
 3. Click on **Actions > Modify Permissions**.
 4. Click **Add Account** and enter the **AWS Account ID** of the target account.
 5. Click **Save**.
+
+---
 
 ### 📥 Step 4: Copy the Snapshot in the Target Account
 1. **Log into the Target Account**.
@@ -117,6 +126,5 @@ AWS **console does not support sharing snapshots encrypted with the default AWS-
 4. Click on **Actions > Copy**.
 5. Choose **a CMK from the target account**.
 6. Click **Copy**.
-
 
 
